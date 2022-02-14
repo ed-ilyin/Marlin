@@ -50,6 +50,8 @@ MarlinUI ui;
   #include "e3v2/creality/dwin.h"
 #elif ENABLED(DWIN_CREALITY_LCD_ENHANCED)
   #include "e3v2/enhanced/dwin.h"
+#elif ENABLED(RTS_AVAILABLE)
+  #include "e3v2/creality/LCD_RTS.h"
 #elif ENABLED(DWIN_CREALITY_LCD_JYERSUI)
   #include "e3v2/jyersui/dwin.h"
 #endif
@@ -111,7 +113,7 @@ constexpr uint8_t epps = ENCODER_PULSES_PER_STEP;
   void MarlinUI::set_brightness(const uint8_t value) {
     backlight = !!value;
     if (backlight) brightness = constrain(value, LCD_BRIGHTNESS_MIN, LCD_BRIGHTNESS_MAX);
-    _set_brightness();
+    //_set_brightness();
   }
 #endif
 
@@ -1496,7 +1498,7 @@ constexpr uint8_t epps = ENCODER_PULSES_PER_STEP;
     #endif
 
     TERN_(EXTENSIBLE_UI, ExtUI::onStatusChanged(status_message));
-    TERN_(HAS_DWIN_E3V2_BASIC, DWIN_StatusChanged(status_message));
+    //TERN_(HAS_DWIN_E3V2_BASIC, DWIN_StatusChanged(status_message));
     TERN_(DWIN_CREALITY_LCD_JYERSUI, CrealityDWIN.Update_Status(status_message));
   }
 
@@ -1691,7 +1693,7 @@ constexpr uint8_t epps = ENCODER_PULSES_PER_STEP;
       init_lcd(); // Revive a noisy shared SPI LCD
     #endif
 
-    refresh();
+    //refresh();
 
     #if HAS_WIRED_LCD || defined(LED_BACKLIGHT_TIMEOUT)
       const millis_t ms = millis();

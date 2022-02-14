@@ -55,6 +55,8 @@
   #include "../lcd/extui/ui_api.h"
 #elif ENABLED(DWIN_CREALITY_LCD_ENHANCED)
   #include "../lcd/e3v2/enhanced/dwin.h"
+#elif ENABLED(RTS_AVAILABLE)
+  #include "../lcd/e3v2/creality/LCD_RTS.h"
 #endif
 
 #include "../lcd/marlinui.h"
@@ -139,7 +141,9 @@ static bool ensure_safe_temperature(const bool wait=true, const PauseMode mode=P
       thermalManager.setTargetHotend(thermalManager.extrude_min_temp, active_extruder);
   #endif
 
-  ui.pause_show_message(PAUSE_MESSAGE_HEATING, mode); UNUSED(mode);
+  ui.pause_show_message(PAUSE_MESSAGE_HEATING, mode); UNUSED(mode);//加热喷嘴等待界面
+  rtscheck.RTS_SndData(thermalManager.temp_hotend[0].celsius, HEAD0_CURRENT_TEMP_VP);
+  rtscheck.RTS_SndData(thermalManager.temp_hotend[0].target, HEAD0_SET_TEMP_VP);
 
   if (wait) return thermalManager.wait_for_hotend(active_extruder);
 
@@ -186,10 +190,17 @@ bool load_filament(const_float_t slow_load_length/*=0*/, const_float_t fast_load
   }
 
   if (pause_for_user) {
-    if (show_lcd) ui.pause_show_message(PAUSE_MESSAGE_INSERT, mode);
+    if (show_lcd)
+    {
+      ui.pause_show_message(PAUSE_MESSAGE_INSERT, mode);//插入丝料并继续
+      // rtscheck.RTS_SndData(thermalManager.temp_hotend[0].celsius, HEAD0_CURRENT_TEMP_VP);
+      // rtscheck.RTS_SndData(thermalManager.temp_hotend[0].target, HEAD0_SET_TEMP_VP);
+      // rtscheck.RTS_SndData(ExchangePageBase + 17, ExchangepageAddr);
+    } 
     SERIAL_ECHO_MSG(_PMSG(STR_FILAMENT_CHANGE_INSERT));
 
     first_impatient_beep(max_beep_count);
+    
 
     KEEPALIVE_STATE(PAUSED_FOR_USER);
     wait_for_user = true;    // LCD click or M108 will clear this
@@ -265,8 +276,12 @@ bool load_filament(const_float_t slow_load_length/*=0*/, const_float_t fast_load
     do {
       if (purge_length > 0) {
         // "Wait for filament purge"
-        if (show_lcd) ui.pause_show_message(PAUSE_MESSAGE_PURGE);
-
+        if (show_lcd)
+        {
+          ui.pause_show_message(PAUSE_MESSAGE_PURGE);//等待清理喷嘴
+          rtscheck.RTS_SndData(thermalManager.temp_hotend[0].celsius, HEAD0_CURRENT_TEMP_VP);
+          rtscheck.RTS_SndData(thermalManager.temp_hotend[0].target, HEAD0_SET_TEMP_VP);
+        }
         // Extrude filament to get into hotend
         unscaled_e_move(purge_length, ADVANCED_PAUSE_PURGE_FEEDRATE);
       }
@@ -340,8 +355,12 @@ bool unload_filament(const_float_t unload_length, const bool show_lcd/*=false*/,
     return false;
   }
 
-  if (show_lcd) ui.pause_show_message(PAUSE_MESSAGE_UNLOAD, mode);
-
+  if (show_lcd) 
+  {
+    ui.pause_show_message(PAUSE_MESSAGE_UNLOAD, mode);//等待卸下丝料
+    rtscheck.RTS_SndData(thermalManager.temp_hotend[0].celsius, HEAD0_CURRENT_TEMP_VP);
+    rtscheck.RTS_SndData(thermalManager.temp_hotend[0].target, HEAD0_SET_TEMP_VP);
+  }
   // Retract filament
   unscaled_e_move(-(FILAMENT_UNLOAD_PURGE_RETRACT) * mix_multiplier, (PAUSE_PARK_RETRACT_FEEDRATE) * mix_multiplier);
 
@@ -485,6 +504,9 @@ void show_continue_prompt(const bool is_reload) {
   DEBUG_ECHOLNPGM("... is_reload:", is_reload);
 
   ui.pause_show_message(is_reload ? PAUSE_MESSAGE_INSERT : PAUSE_MESSAGE_WAITING);
+  rtscheck.RTS_SndData(thermalManager.temp_hotend[0].celsius, HEAD0_CURRENT_TEMP_VP);
+  rtscheck.RTS_SndData(thermalManager.temp_hotend[0].target, HEAD0_SET_TEMP_VP);
+  rtscheck.RTS_SndData(Beep, SoundAddr);
   SERIAL_ECHO_START();
   SERIAL_ECHOPGM_P(is_reload ? PSTR(_PMSG(STR_FILAMENT_CHANGE_INSERT) "\n") : PSTR(_PMSG(STR_FILAMENT_CHANGE_WAIT) "\n"));
 }
@@ -525,7 +547,9 @@ void wait_for_confirmation(const bool is_reload/*=false*/, const int8_t max_beep
     // Wait for the user to press the button to re-heat the nozzle, then
     // re-heat the nozzle, re-show the continue prompt, restart idle timers, start over
     if (nozzle_timed_out) {
-      ui.pause_show_message(PAUSE_MESSAGE_HEAT);
+      ui.pause_show_message(PAUSE_MESSAGE_HEAT);//按下确认，加热喷嘴
+      rtscheck.RTS_SndData(thermalManager.temp_hotend[0].celsius, HEAD0_CURRENT_TEMP_VP);
+      rtscheck.RTS_SndData(thermalManager.temp_hotend[0].target, HEAD0_SET_TEMP_VP);
       SERIAL_ECHO_MSG(_PMSG(STR_FILAMENT_CHANGE_HEAT));
 
       TERN_(HOST_PROMPT_SUPPORT, host_prompt_do(PROMPT_USER_CONTINUE, GET_TEXT(MSG_HEATER_TIMEOUT), GET_TEXT(MSG_REHEAT)));

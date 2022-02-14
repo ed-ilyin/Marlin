@@ -71,8 +71,10 @@
 #endif
 
 #if HAS_DWIN_E3V2
-  #include "lcd/e3v2/common/encoder.h"
-  #if ENABLED(DWIN_CREALITY_LCD)
+  //#include "lcd/e3v2/common/encoder.h"
+  #if ENABLED(RTS_AVAILABLE)
+    #include "lcd/e3v2/creality/LCD_RTS.h"
+  #elif ENABLED(DWIN_CREALITY_LCD)
     #include "lcd/e3v2/creality/dwin.h"
   #elif ENABLED(DWIN_CREALITY_LCD_ENHANCED)
     #include "lcd/e3v2/enhanced/dwin.h"
@@ -247,6 +249,8 @@ MarlinState marlin_state = MF_INITIALIZING;
 // For M109 and M190, this flag may be cleared (by M108) to exit the wait loop
 bool wait_for_heatup = true;
 
+uint8_t active_extruder_font;
+uint8_t dualXPrintingModeStatus;
 // For M0/M1, this flag may be cleared (by M108) to exit the wait-for-user loop
 #if HAS_RESUME_CONTINUE
   bool wait_for_user; // = false;
@@ -709,12 +713,13 @@ inline void manage_inactivity(const bool no_stepper_sleep=false) {
   TERN_(MONITOR_L6470_DRIVER_STATUS, L64xxManager.monitor_driver());
 
   // Limit check_axes_activity frequency to 10Hz
-  static millis_t next_check_axes_ms = 0;
-  if (ELAPSED(ms, next_check_axes_ms)) {
-    planner.check_axes_activity();
-    next_check_axes_ms = ms + 100UL;
-  }
-
+  // static millis_t next_check_axes_ms = 0;
+  // if (ELAPSED(ms, next_check_axes_ms)) {
+  //   planner.check_axes_activity();
+  //   next_check_axes_ms = ms + 100UL;
+  // }
+  planner.check_axes_activity();
+  
   #if PIN_EXISTS(FET_SAFETY)
     static millis_t FET_next;
     if (ELAPSED(ms, FET_next)) {
@@ -805,7 +810,7 @@ void idle(bool no_stepper_sleep/*=false*/) {
   TERN_(USE_BEEPER, buzzer.tick());
 
   // Handle UI input / draw events
-  TERN(HAS_DWIN_E3V2_BASIC, DWIN_Update(), ui.update());
+  TERN_(HAS_DWIN_E3V2_BASIC, RTSUpdate());
 
   // Run i2c Position Encoders
   #if ENABLED(I2C_POSITION_ENCODERS)
@@ -1113,8 +1118,12 @@ void setup() {
   #define SETUP_RUN(C) do{ SETUP_LOG(STRINGIFY(C)); C; }while(0)
 
   MYSERIAL1.begin(BAUDRATE);
-  millis_t serial_connect_timeout = millis() + 1000UL;
+  uint32_t serial_connect_timeout = millis() + 1000UL;
   while (!MYSERIAL1.connected() && PENDING(millis(), serial_connect_timeout)) { /*nada*/ }
+
+  LCD_SERIAL.begin(BAUDRATE);
+  serial_connect_timeout = millis() + 1000UL;
+  while (!LCD_SERIAL.connected() && PENDING(millis(), serial_connect_timeout)) { /*nada*/ }
 
   #if HAS_MULTI_SERIAL && !HAS_ETHERNET
     #ifndef BAUDRATE_2
@@ -1272,7 +1281,7 @@ void setup() {
   // (because EEPROM code calls the UI).
 
   #if HAS_DWIN_E3V2_BASIC
-    SETUP_RUN(DWIN_Startup());
+    SETUP_RUN(RTSUpdate());
   #else
     SETUP_RUN(ui.init());
     #if BOTH(HAS_WIRED_LCD, SHOW_BOOTSCREEN)
@@ -1301,6 +1310,9 @@ void setup() {
 
   SETUP_RUN(settings.first_load());   // Load data from EEPROM if available (or use defaults)
                                       // This also updates variables in the planner, elsewhere
+  #if HAS_MULTI_EXTRUDER
+    TERN_(HAS_T_COMMAND, active_extruder = active_extruder_font);
+  #endif
 
   #if HAS_ETHERNET
     SETUP_RUN(ethernet.init());
@@ -1547,11 +1559,7 @@ void setup() {
   #endif
 
   #if HAS_DWIN_E3V2_BASIC
-    Encoder_Configuration();
-    HMI_Init();
-    HMI_SetLanguageCache();
-    HMI_StartFrame(true);
-    DWIN_StatusChanged_P(GET_TEXT(WELCOME_MSG));
+    SETUP_RUN(rtscheck.RTS_Init());
   #endif
 
   #if HAS_SERVICE_INTERVALS && !HAS_DWIN_E3V2_BASIC
@@ -1590,8 +1598,8 @@ void setup() {
   #endif
 
   marlin_state = MF_RUNNING;
-
   SETUP_LOG("setup() completed.");
+  queue.enqueue_now_P(PSTR("M280 P0 S160"));
 }
 
 /**

@@ -25,12 +25,13 @@
  * Release version. Leave the Marlin version or apply a custom scheme.
  */
 #ifndef SHORT_BUILD_VERSION
-  #define SHORT_BUILD_VERSION "2.0.9.2"
+  #define SHORT_BUILD_VERSION "V1.0.9"
 #endif
 
 /**
  * Verbose version identifier containing a unique identifier, such as the
  * vendor name, download location, GitHub account, etc.
+ * 
  */
 #ifndef DETAILED_BUILD_VERSION
   #define DETAILED_BUILD_VERSION SHORT_BUILD_VERSION
@@ -42,7 +43,7 @@
  * version was tagged.
  */
 #ifndef STRING_DISTRIBUTION_DATE
-  #define STRING_DISTRIBUTION_DATE "2021-09-03"
+  #define STRING_DISTRIBUTION_DATE "2021-12-22"
 #endif
 
 /**
@@ -66,14 +67,14 @@
  * (Other behaviors are given by the firmware version and capabilities report.)
  */
 #ifndef PROTOCOL_VERSION
-  #define PROTOCOL_VERSION "1.0"
+  #define PROTOCOL_VERSION "1.0.9"
 #endif
 
 /**
  * Define a generic printer name to be output to the LCD after booting Marlin.
  */
 #ifndef MACHINE_NAME
-  #define MACHINE_NAME "3D Printer"
+  #define MACHINE_NAME "SV04"
 #endif
 
 /**
@@ -120,3 +121,4 @@
   #define USB_DEVICE_PRODUCT_NAME         MACHINE_NAME
 #endif
 #define USB_DEVICE_SERIAL_NAME            "123985739853"
+#define	CORP_WEBSITE_E	"sovol3d.com"

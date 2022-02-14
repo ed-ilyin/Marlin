@@ -62,6 +62,8 @@ bool printingIsPaused();
 void startOrResumeJob();
 
 extern bool wait_for_heatup;
+extern uint8_t active_extruder_font;
+extern uint8_t dualXPrintingModeStatus;
 
 #if HAS_RESUME_CONTINUE
   extern bool wait_for_user;

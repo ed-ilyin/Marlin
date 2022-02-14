@@ -55,6 +55,10 @@
   #include "../lcd/marlinui.h"
 #endif
 
+#if ENABLED(RTS_AVAILABLE)
+  #include "../lcd/e3v2/creality/LCD_RTS.h"
+#endif
+
 #if HAS_FILAMENT_SENSOR
   #include "../feature/runout.h"
 #endif
@@ -713,7 +717,7 @@ void restore_feedrate_and_scaling() {
         // In Dual X mode hotend_offset[X] is T1's home position
         const float dual_max_x = _MAX(hotend_offset[1].x, X2_MAX_POS);
 
-        if (new_tool_index != 0) {
+        if ((new_tool_index != 0) && (save_dual_x_carriage_mode != 4) && (save_dual_x_carriage_mode != 1)) {
           // T1 can move from X2_MIN_POS to X2_MAX_POS or X2 home position (whichever is larger)
           soft_endstop.min.x = X2_MIN_POS;
           soft_endstop.max.x = dual_max_x;
@@ -723,6 +727,10 @@ void restore_feedrate_and_scaling() {
           // but not so far to the right that T1 would move past the end
           soft_endstop.min.x = X1_MIN_POS;
           soft_endstop.max.x = _MIN(X1_MAX_POS, dual_max_x - duplicate_extruder_x_offset);
+        }
+        else if ((save_dual_x_carriage_mode == 4) || (save_dual_x_carriage_mode == 1)) {
+          soft_endstop.min.x = 0;
+          soft_endstop.max.x = dual_max_x;
         }
         else {
           // In other modes, T0 can move from X1_MIN_POS to X1_MAX_POS
@@ -1193,7 +1201,9 @@ FORCE_INLINE void segment_idle(millis_t &next_idle_ms) {
         case DXC_MIRRORED_MODE:
         case DXC_DUPLICATION_MODE:
           if (active_extruder == 0) {
+            set_duplication_enabled(false); // Clear stale duplication state
             // Restore planner to parked head (T1) X position
+            float x0_pos = current_position.x;
             xyze_pos_t pos_now = current_position;
             pos_now.x = inactive_extruder_x;
             planner.set_position_mm(pos_now);
@@ -1201,7 +1211,9 @@ FORCE_INLINE void segment_idle(millis_t &next_idle_ms) {
             // Keep the same X or add the duplication X offset
             xyze_pos_t new_pos = pos_now;
             if (dual_x_carriage_mode == DXC_DUPLICATION_MODE)
-              new_pos.x += duplicate_extruder_x_offset;
+              new_pos.x = x0_pos + duplicate_extruder_x_offset;
+            else
+              new_pos.x = _MIN(X_BED_SIZE - x0_pos, X2_MAX_POS);
 
             // Move duplicate extruder into the correct position
             if (DEBUGGING(LEVELING)) DEBUG_ECHOLNPGM("Set planner X", inactive_extruder_x, " ... Line to X", new_pos.x);

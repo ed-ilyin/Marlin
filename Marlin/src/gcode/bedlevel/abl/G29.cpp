@@ -34,6 +34,7 @@
 #include "../../../module/planner.h"
 #include "../../../module/stepper.h"
 #include "../../../module/probe.h"
+#include "../../../module/settings.h"
 #include "../../queue.h"
 
 #if ENABLED(PROBE_TEMP_COMPENSATION)
@@ -62,6 +63,8 @@
   #include "../../../lcd/e3v2/creality/dwin.h"
 #elif ENABLED(DWIN_CREALITY_LCD_ENHANCED)
   #include "../../../lcd/e3v2/enhanced/dwin.h"
+#elif ENABLED(RTS_AVAILABLE)
+  #include "../../../lcd/e3v2/creality/LCD_RTS.h"
 #endif
 
 #if HAS_MULTI_HOTEND
@@ -299,7 +302,7 @@ G29_TYPE GcodeSuite::G29() {
         }
         if (WITHIN(i, 0, (GRID_MAX_POINTS_X) - 1) && WITHIN(j, 0, (GRID_MAX_POINTS_Y) - 1)) {
           set_bed_leveling_enabled(false);
-          z_values[i][j] = rz;
+          //z_values[i][j] = rz;
           TERN_(ABL_BILINEAR_SUBDIVISION, bed_level_virt_interpolate());
           TERN_(EXTENSIBLE_UI, ExtUI::onMeshUpdate(i, j, rz));
           set_bed_leveling_enabled(abl.reenable);
@@ -602,9 +605,11 @@ G29_TYPE GcodeSuite::G29() {
 
       abl.measured_z = 0;
 
+      uint8_t showcount = 0;
+
       // Outer loop is X with PROBE_Y_FIRST enabled
       // Outer loop is Y with PROBE_Y_FIRST disabled
-      for (PR_OUTER_VAR = 0; PR_OUTER_VAR < PR_OUTER_SIZE && !isnan(abl.measured_z); PR_OUTER_VAR++) {
+      for (PR_OUTER_VAR = 0, showcount = 0; PR_OUTER_VAR < PR_OUTER_SIZE && !isnan(abl.measured_z); PR_OUTER_VAR++) {
 
         int8_t inStart, inStop, inInc;
 
@@ -666,6 +671,13 @@ G29_TYPE GcodeSuite::G29() {
             const float z = abl.measured_z + abl.Z_offset;
             z_values[abl.meshCount.x][abl.meshCount.y] = z;
             TERN_(EXTENSIBLE_UI, ExtUI::onMeshUpdate(abl.meshCount, z));
+            #if ENABLED(RTS_AVAILABLE)
+              if((showcount ++) < GRID_MAX_POINTS_X * GRID_MAX_POINTS_Y)
+              {
+                rtscheck.RTS_SndData(showcount, AUTO_BED_LEVEL_ICON_VP);
+              }
+              rtscheck.RTS_SndData(z*1000, AUTO_BED_LEVEL_1POINT_VP + (showcount - 1) * 2);
+            #endif
 
           #endif
 
@@ -885,8 +897,11 @@ G29_TYPE GcodeSuite::G29() {
     process_subcommands_now_P(PSTR(Z_PROBE_END_SCRIPT));
   #endif
 
-  TERN_(HAS_DWIN_E3V2_BASIC, DWIN_CompletedLeveling());
+  //TERN_(HAS_DWIN_E3V2_BASIC, DWIN_CompletedLeveling());
 
+  #if ENABLED(RTS_AVAILABLE)
+    RTS_AutoBedLevelPage();
+  #endif
   report_current_position();
 
   TERN_(FULL_REPORT_TO_HOST_FEATURE, set_and_report_grblstate(M_IDLE));

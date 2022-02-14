@@ -2211,19 +2211,15 @@ bool Planner::_populate_block(block_t * const block, bool split_move,
           if (g_uc_extruder_last_move[i]) g_uc_extruder_last_move[i]--;
 
         #define E_STEPPER_INDEX(E) TERN(SWITCHING_EXTRUDER, (E) / 2, E)
+        #define _IS_DUPE(N) TERN0(HAS_DUPLICATION_MODE, (extruder_duplication_enabled && TERN1(MULTI_NOZZLE_DUPLICATION, TEST(duplication_e_mask, N))))
 
         #define ENABLE_ONE_E(N) do{ \
-          if (E_STEPPER_INDEX(extruder) == N) { \
-            stepper.ENABLE_EXTRUDER(N); \
-            g_uc_extruder_last_move[N] = (BLOCK_BUFFER_SIZE) * 2; \
-            if ((N) == 0 && TERN0(HAS_DUPLICATION_MODE, extruder_duplication_enabled)) \
-              stepper.ENABLE_EXTRUDER(1); \
+          if (N == E_STEPPER_INDEX(extruder) || _IS_DUPE(N)) {    /* N is 'extruder', or N is duplicating */ \
+            stepper.ENABLE_EXTRUDER(N);                           /* Enable the relevant E stepper... */ \
+            g_uc_extruder_last_move[N] = (BLOCK_BUFFER_SIZE) * 2; /* ...and reset its counter */ \
           } \
-          else if (!g_uc_extruder_last_move[N]) { \
-            stepper.DISABLE_EXTRUDER(N); \
-            if ((N) == 0 && TERN0(HAS_DUPLICATION_MODE, extruder_duplication_enabled)) \
-              stepper.DISABLE_EXTRUDER(1); \
-          } \
+          else if (!g_uc_extruder_last_move[N])                   /* Counter expired since last E stepper enable */ \
+            stepper.DISABLE_EXTRUDER(N);                          /* Disable the E stepper */ \
         }while(0);
 
       #else

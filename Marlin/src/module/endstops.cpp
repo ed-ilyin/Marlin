@@ -30,6 +30,9 @@
 #include "../sd/cardreader.h"
 #include "temperature.h"
 #include "../lcd/marlinui.h"
+#if ENABLED(RTS_AVAILABLE)
+  #include "../lcd/e3v2/creality/LCD_RTS.h"
+#endif
 
 #if ENABLED(ENDSTOP_INTERRUPTS_FEATURE)
   #include HAL_PATH(../HAL, endstop_interrupts.h)
@@ -384,7 +387,12 @@ void Endstops::not_homing() {
   // If the last move failed to trigger an endstop, call kill
   void Endstops::validate_homing_move() {
     if (trigger_state()) hit_on_purpose();
-    else kill(GET_TEXT(MSG_KILL_HOMING_FAILED));
+    else{ 
+      
+      rtscheck.RTS_SndData(ExchangePageBase + 55, ExchangepageAddr);
+
+      kill(GET_TEXT(MSG_KILL_HOMING_FAILED));
+    }
   }
 #endif
 

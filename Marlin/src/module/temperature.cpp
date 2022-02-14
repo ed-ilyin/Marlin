@@ -49,6 +49,8 @@
   #include "../lcd/e3v2/creality/dwin.h"
 #elif ENABLED(DWIN_CREALITY_LCD_ENHANCED)
   #include "../lcd/e3v2/enhanced/dwin.h"
+#elif ENABLED(RTS_AVAILABLE)
+  #include "../lcd/e3v2/creality/LCD_RTS.h"
 #endif
 
 #if ENABLED(EXTENSIBLE_UI)
@@ -731,10 +733,25 @@ volatile bool Temperature::raw_temps_ready = false;
                 if (current_temp > watch_temp_target) heated = true;  // - Flag if target temperature reached
               }
               else if (ELAPSED(ms, temp_change_ms))                   // Watch timer expired
-                _temp_error(heater_id, str_t_heating_failed, GET_TEXT(MSG_HEATING_FAILED_LCD));
+              {
+                #if ENABLED(RTS_AVAILABLE)
+                 
+                    rtscheck.RTS_SndData(ExchangePageBase + 53, ExchangepageAddr);
+                  
+                #endif
+                 _temp_error(heater_id, str_t_heating_failed, GET_TEXT(MSG_HEATING_FAILED_LCD));
+              }
+               
             }
             else if (current_temp < target - (MAX_OVERSHOOT_PID_AUTOTUNE)) // Heated, then temperature fell too far?
+            {
+              #if ENABLED(RTS_AVAILABLE)
+                
+                    rtscheck.RTS_SndData(ExchangePageBase + 52, ExchangepageAddr);
+                  
+              #endif
               _temp_error(heater_id, str_t_thermal_runaway, GET_TEXT(MSG_THERMAL_RUNAWAY));
+            }
           }
         #endif
       } // every 2 seconds
@@ -747,6 +764,11 @@ volatile bool Temperature::raw_temps_ready = false;
         TERN_(DWIN_CREALITY_LCD, DWIN_Popup_Temperature(0));
         TERN_(DWIN_CREALITY_LCD_ENHANCED, DWIN_PidTuning(PID_TUNING_TIMEOUT));
         TERN_(EXTENSIBLE_UI, ExtUI::onPidTuning(ExtUI::result_t::PID_TUNING_TIMEOUT));
+        #if ENABLED(RTS_AVAILABLE)
+          
+            rtscheck.RTS_SndData(ExchangePageBase + 53, ExchangepageAddr);
+          
+        #endif
         SERIAL_ECHOLNPGM(STR_PID_TIMEOUT);
         break;
       }
@@ -806,9 +828,8 @@ volatile bool Temperature::raw_temps_ready = false;
 
       // Run HAL idle tasks
       TERN_(HAL_IDLETASK, HAL_idletask());
-
       // Run UI update
-      TERN(HAS_DWIN_E3V2_BASIC, DWIN_Update(), ui.update());
+      TERN(HAS_DWIN_E3V2_BASIC, RTSUpdate(), ui.update());
     }
     wait_for_heatup = false;
 
@@ -1029,14 +1050,18 @@ void Temperature::_temp_error(const heater_id_t heater_id, PGM_P const serial_ms
 
 void Temperature::max_temp_error(const heater_id_t heater_id) {
   #if HAS_DWIN_E3V2_BASIC && (HAS_HOTEND || HAS_HEATED_BED)
-    DWIN_Popup_Temperature(1);
+    
+      rtscheck.RTS_SndData(ExchangePageBase + 54, ExchangepageAddr);
+    
   #endif
   _temp_error(heater_id, PSTR(STR_T_MAXTEMP), GET_TEXT(MSG_ERR_MAXTEMP));
 }
 
 void Temperature::min_temp_error(const heater_id_t heater_id) {
   #if HAS_DWIN_E3V2_BASIC && (HAS_HOTEND || HAS_HEATED_BED)
-    DWIN_Popup_Temperature(0);
+    
+      rtscheck.RTS_SndData(ExchangePageBase + 54, ExchangepageAddr);
+    
   #endif
   _temp_error(heater_id, PSTR(STR_T_MINTEMP), GET_TEXT(MSG_ERR_MINTEMP));
 }
@@ -1325,7 +1350,15 @@ void Temperature::manage_heater() {
 
     HOTEND_LOOP() {
       #if ENABLED(THERMAL_PROTECTION_HOTENDS)
-        if (degHotend(e) > temp_range[e].maxtemp) max_temp_error((heater_id_t)e);
+        if (degHotend(e) > temp_range[e].maxtemp)
+        {
+          #if ENABLED(RTS_AVAILABLE)
+            
+              rtscheck.RTS_SndData(ExchangePageBase + 54, ExchangepageAddr);
+            
+          #endif
+           max_temp_error((heater_id_t)e);
+        }
       #endif
 
       TERN_(HEATER_IDLE_HANDLER, heater_idle[e].update(ms));
@@ -1343,7 +1376,11 @@ void Temperature::manage_heater() {
           if (watch_hotend[e].check(degHotend(e)))  // Increased enough?
             start_watching_hotend(e);               // If temp reached, turn off elapsed check
           else {
-            TERN_(HAS_DWIN_E3V2_BASIC, DWIN_Popup_Temperature(0));
+            #if ENABLED(RTS_AVAILABLE)
+              
+                rtscheck.RTS_SndData(ExchangePageBase + 53, ExchangepageAddr);
+              
+            #endif
             _temp_error((heater_id_t)e, str_t_heating_failed, GET_TEXT(MSG_HEATING_FAILED_LCD));
           }
         }
@@ -1377,7 +1414,15 @@ void Temperature::manage_heater() {
   #if HAS_HEATED_BED
 
     #if ENABLED(THERMAL_PROTECTION_BED)
-      if (degBed() > BED_MAXTEMP) max_temp_error(H_BED);
+      if (degBed() > BED_MAXTEMP)
+      {
+        #if ENABLED(RTS_AVAILABLE)
+          
+            rtscheck.RTS_SndData(ExchangePageBase + 54, ExchangepageAddr);
+          
+        #endif
+        max_temp_error(H_BED);
+      } 
     #endif
 
     #if WATCH_BED
@@ -1386,7 +1431,11 @@ void Temperature::manage_heater() {
         if (watch_bed.check(degBed()))          // Increased enough?
           start_watching_bed();                 // If temp reached, turn off elapsed check
         else {
-          TERN_(HAS_DWIN_E3V2_BASIC, DWIN_Popup_Temperature(0));
+          #if ENABLED(RTS_AVAILABLE)
+           
+              rtscheck.RTS_SndData(ExchangePageBase + 53, ExchangepageAddr);
+           
+          #endif
           _temp_error(H_BED, str_t_heating_failed, GET_TEXT(MSG_HEATING_FAILED_LCD));
         }
       }
@@ -2596,7 +2645,11 @@ void Temperature::init() {
         state = TRRunaway;
 
       case TRRunaway:
-        TERN_(HAS_DWIN_E3V2_BASIC, DWIN_Popup_Temperature(0));
+        #if ENABLED(RTS_AVAILABLE)
+         
+            rtscheck.RTS_SndData(ExchangePageBase + 52, ExchangepageAddr);
+          
+        #endif
         _temp_error(heater_id, str_t_thermal_runaway, GET_TEXT(MSG_THERMAL_RUNAWAY));
     }
   }
@@ -3728,9 +3781,10 @@ void Temperature::isr() {
       if (wait_for_heatup) {
         wait_for_heatup = false;
         #if HAS_DWIN_E3V2_BASIC
-          HMI_flag.heat_flag = 0;
-          duration_t elapsed = print_job_timer.duration();  // print timer
-          dwin_heat_time = elapsed.value;
+          Update_Time_Value = RTS_UPDATE_VALUE;
+          
+            rtscheck.RTS_SndData(ExchangePageBase + 11, ExchangepageAddr);
+          
         #endif
         ui.reset_status();
         TERN_(PRINTER_EVENT_LEDS, printerEventLEDs.onHeatingDone());

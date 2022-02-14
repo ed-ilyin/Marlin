@@ -50,13 +50,14 @@
 #endif
 
 // Fixed
+/*
 #define SDIO_D0_PIN   PC8
 #define SDIO_D1_PIN   PC9
 #define SDIO_D2_PIN   PC10
 #define SDIO_D3_PIN   PC11
 #define SDIO_CK_PIN   PC12
 #define SDIO_CMD_PIN  PD2
-
+*/
 SD_HandleTypeDef hsd;  // create SDIO structure
 // F4 supports one DMA for RX and another for TX, but Marlin will never
 // do read and write at same time, so we use the same DMA for both.

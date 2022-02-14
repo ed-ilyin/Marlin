@@ -77,6 +77,10 @@
   #include "../lcd/e3v2/jyersui/dwin.h"
 #endif
 
+#if ENABLED(RTS_AVAILABLE)
+  #include "../lcd/e3v2/creality/LCD_RTS.h"
+#endif
+
 #if HAS_SERVOS
   #include "servo.h"
 #endif
@@ -442,8 +446,10 @@ typedef struct SettingsDataStruct {
   #endif
 
   //
-  // Ender-3 V2 DWIN
+  // SV04 DWIN
   //
+  uint8_t dualXPrintingModeStatus;
+  uint8_t active_extruder_font;
   #if ENABLED(DWIN_CREALITY_LCD_ENHANCED)
     uint8_t dwin_data[eeprom_data_size];
   #elif ENABLED(DWIN_CREALITY_LCD_JYERSUI)
@@ -718,16 +724,16 @@ void MarlinSettings::postprocess() {
       #if HAS_FILAMENT_SENSOR
         const bool &runout_sensor_enabled = runout.enabled;
       #else
-        constexpr int8_t runout_sensor_enabled = -1;
+        constexpr bool runout_sensor_enabled = true;
       #endif
-      _FIELD_TEST(runout_sensor_enabled);
-      EEPROM_WRITE(runout_sensor_enabled);
 
       #if HAS_FILAMENT_RUNOUT_DISTANCE
         const float &runout_distance_mm = runout.runout_distance();
       #else
         constexpr float runout_distance_mm = 0;
       #endif
+      _FIELD_TEST(runout_sensor_enabled);
+      EEPROM_WRITE(runout_sensor_enabled);
       EEPROM_WRITE(runout_distance_mm);
     }
 
@@ -1384,7 +1390,8 @@ void MarlinSettings::postprocess() {
     #if CASELIGHT_USES_BRIGHTNESS
       EEPROM_WRITE(caselight.brightness);
     #endif
-
+    EEPROM_WRITE(dualXPrintingModeStatus);
+    EEPROM_WRITE(active_extruder_font);
     //
     // Password feature
     //
@@ -1582,14 +1589,18 @@ void MarlinSettings::postprocess() {
       // Filament Runout Sensor
       //
       {
-        int8_t runout_sensor_enabled;
+         #if HAS_FILAMENT_SENSOR
+          const bool &runout_sensor_enabled = runout.enabled;
+        #else
+          bool runout_sensor_enabled;
+        #endif
         _FIELD_TEST(runout_sensor_enabled);
         EEPROM_READ(runout_sensor_enabled);
         #if HAS_FILAMENT_SENSOR
           runout.enabled = runout_sensor_enabled < 0 ? FIL_RUNOUT_ENABLED_DEFAULT : runout_sensor_enabled;
         #endif
 
-        TERN_(HAS_FILAMENT_SENSOR, if (runout.enabled) runout.reset());
+        //TERN_(HAS_FILAMENT_SENSOR, if (runout.enabled) runout.reset());
 
         float runout_distance_mm;
         EEPROM_READ(runout_distance_mm);
@@ -2350,7 +2361,17 @@ void MarlinSettings::postprocess() {
         ui.set_language(ui_language);
       }
       #endif
+      if((dualXPrintingModeStatus != 0) && (dualXPrintingModeStatus != 1) && (dualXPrintingModeStatus != 2) && (dualXPrintingModeStatus != 3) && (dualXPrintingModeStatus != 4))
+      {
+        dualXPrintingModeStatus = 0;
+      }
+      EEPROM_READ(dualXPrintingModeStatus);
 
+      if((active_extruder_font != 0) && (active_extruder_font != 1))
+      {
+        active_extruder_font = 0;
+      }
+      EEPROM_READ(active_extruder_font);
       //
       // Validate Final Size and CRC
       //
@@ -3298,7 +3319,13 @@ void MarlinSettings::reset() {
       CONFIG_ECHO_START(); SERIAL_ECHO_SP(2); gcode.M553_report();
       CONFIG_ECHO_START(); SERIAL_ECHO_SP(2); gcode.M554_report();
     #endif
+    CONFIG_ECHO_HEADING("0:Single 1:Two-color 2:Copy 3:Mirror Dual X Printing Mode Status:");
+    CONFIG_ECHO_START();
+    SERIAL_ERROR_MSG("  M605 S", int(dualXPrintingModeStatus));
 
+    CONFIG_ECHO_HEADING("0:extruder0 1:extruder1 active extruder font:");
+    CONFIG_ECHO_START();
+    SERIAL_ERROR_MSG("  T", int(active_extruder_font));
     TERN_(HAS_MULTI_LANGUAGE, gcode.M414_report(forReplay));
   }
 

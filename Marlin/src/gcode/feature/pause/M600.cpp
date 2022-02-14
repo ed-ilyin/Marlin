@@ -45,7 +45,9 @@
 #if HAS_FILAMENT_SENSOR
   #include "../../../feature/runout.h"
 #endif
-
+#if ENABLED(RTS_AVAILABLE)
+  #include "../../../lcd/e3v2/creality/LCD_RTS.h"
+#endif
 /**
  * M600: Pause for filament change
  *
@@ -62,7 +64,7 @@
  *  Default values are used for omitted arguments.
  */
 void GcodeSuite::M600() {
-
+SERIAL_ECHOLNPGM("helwr");
   #if ENABLED(MIXING_EXTRUDER)
     const int8_t target_e_stepper = get_target_e_stepper_from_command();
     if (target_e_stepper < 0) return;
@@ -75,7 +77,9 @@ void GcodeSuite::M600() {
 
     const int8_t target_extruder = active_extruder;
   #else
+  SERIAL_ECHOLNPGM("hello wr");
     const int8_t target_extruder = get_target_extruder_from_command();
+    
     if (target_extruder < 0) return;
   #endif
 
@@ -96,7 +100,9 @@ void GcodeSuite::M600() {
   #if DISABLED(MMU2_MENUS)
     ui.pause_show_message(PAUSE_MESSAGE_CHANGING, PAUSE_MODE_PAUSE_PRINT, target_extruder);
   #endif
-
+ 
+  rtscheck.RTS_SndData(ExchangePageBase + 6, ExchangepageAddr);
+ 
   #if ENABLED(HOME_BEFORE_FILAMENT_CHANGE)
     // If needed, home before parking for filament change
     home_if_needed(true);

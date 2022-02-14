@@ -53,6 +53,8 @@
   #include "../../lcd/e3v2/creality/dwin.h"
 #elif ENABLED(DWIN_CREALITY_LCD_ENHANCED)
   #include "../../lcd/e3v2/enhanced/dwin.h"
+#elif ENABLED(RTS_AVAILABLE)
+  #include "../../lcd/e3v2/creality/LCD_RTS.h"
 #endif
 
 #if HAS_L64XX                         // set L6470 absolute position registers to counts
@@ -140,6 +142,11 @@
     #endif
 
     destination.set(okay_homing_xy, current_position.z);
+
+    #if ENABLED(DUAL_X_CARRIAGE)
+      current_position_x1_axis = X2_MAX_POS;
+      current_position_x0_axis = X_MIN_POS;
+    #endif
 
     TERN_(HOMING_Z_WITH_PROBE, destination -= probe.offset_xy);
 
@@ -239,7 +246,7 @@ void GcodeSuite::G28() {
     return;
   }
 
-  TERN_(HAS_DWIN_E3V2_BASIC, DWIN_StartHoming());
+  //TERN_(HAS_DWIN_E3V2_BASIC, DWIN_StartHoming());
   TERN_(EXTENSIBLE_UI, ExtUI::onHomingStart());
 
   planner.synchronize();          // Wait for planner moves to finish!
@@ -473,6 +480,12 @@ void GcodeSuite::G28() {
 
       TERN_(IMPROVE_HOMING_RELIABILITY, end_slow_homing(saved_motion_state));
     }
+    else if((save_dual_x_carriage_mode == 4) && card.isPrinting()){
+      // Home the 1st (left) extruder
+      active_extruder = 0;
+      homeaxis(X_AXIS);
+
+    }
 
   #endif // DUAL_X_CARRIAGE
 
@@ -521,9 +534,10 @@ void GcodeSuite::G28() {
     #endif
   #endif // HAS_HOMING_CURRENT
 
-  ui.refresh();
+  //ui.refresh();
+  //RTSUpdate();
 
-  TERN_(HAS_DWIN_E3V2_BASIC, DWIN_CompletedHoming());
+  TERN_(RTS_AVAILABLE, RTS_MoveAxisHoming());
   TERN_(EXTENSIBLE_UI, ExtUI::onHomingComplete());
 
   report_current_position();
